@@ -20,7 +20,7 @@ public class JwtTokenProvider {
     private final long VALID_MILISECOND = 1000L * 60 * 60; // 1 시간
     private final CustomUserDetailsService customUserDetailsService;
 
-    private String secretKey = "szsTestJwt";
+    private String secretKey = "secretKey-test-authorization-jwt-manage-token";
 
     public JwtTokenProvider(CustomUserDetailsService customUserDetailsService) {
         this.customUserDetailsService = customUserDetailsService;

@@ -1,15 +1,12 @@
 package com.homework.jwtTest.security.config;
 
-import com.homework.jwtTest.repository.MemberRepository;
+import com.homework.jwtTest.security.JwtAuthorizationFilter;
 import com.homework.jwtTest.security.JwtAuthenticationFilter;
-import com.homework.jwtTest.security.JwtCustomFilter;
 import com.homework.jwtTest.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -35,13 +32,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider);
+    public JwtAuthorizationFilter jwtAuthorizationFilter() {
+        return new JwtAuthorizationFilter(jwtTokenProvider);
     }
 
     @Bean
-    public JwtCustomFilter jwtCustomFilter() throws Exception {
-        return new JwtCustomFilter(authenticationManagerBean(), jwtTokenProvider);
+    public JwtAuthenticationFilter jwtAuthenticationFilter() throws Exception {
+        JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenProvider);
+        jwtAuthenticationFilter.setAuthenticationManager(authenticationManagerBean());
+        return jwtAuthenticationFilter;
     }
 
     @Override
@@ -51,13 +50,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtCustomFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilter(jwtAuthenticationFilter())
+                .addFilterBefore(jwtAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
 
 
         http.authorizeRequests()
                 .anyRequest().permitAll();
-
-
     }
 }

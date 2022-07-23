@@ -1,12 +1,12 @@
 package com.homework.jwtTest.security;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.homework.jwtTest.domain.Member;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -14,30 +14,51 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-@Slf4j
-@RequiredArgsConstructor
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    private final String secret = "szsTest";
 
-        String jwtToken = parseJwt(request);
-        log.info("jwtToken = {}",jwtToken);
-        if (jwtToken != null && jwtTokenProvider.validateToken(jwtToken)) {
-            Authentication auth = jwtTokenProvider.getAuthentication(jwtToken);
-            SecurityContextHolder.getContext().setAuthentication(auth);
-        }
-        log.info("next Filter");
-        filterChain.doFilter(request, response);
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+        this.jwtTokenProvider = jwtTokenProvider;
+        setFilterProcessesUrl("/szs/login");
     }
 
-    private String parseJwt(HttpServletRequest request) {
-        String headerAuth = request.getHeader("Authorization");
-        if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            return headerAuth.substring(7, headerAuth.length());
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
+        //인증 시도
+        ObjectMapper om = new ObjectMapper();
+        Member member = null;
+        try {
+            member = om.readValue(request.getInputStream(), Member.class);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return null;
+
+        UsernamePasswordAuthenticationToken authenticationToken =
+                new UsernamePasswordAuthenticationToken(member.getUsername(), member.getPassword());
+
+        // 인증이 되었는지 테스트
+        Authentication authentication =getAuthenticationManager().authenticate(authenticationToken);
+
+        CustomUserDetails details = (CustomUserDetails) authentication.getPrincipal();
+        System.out.println("로그인 완료됨 : "+details.getMember().getId()); // 로그인이 정상적으로 되었다는 뜻.
+
+        return authentication;
+    }
+
+    @Override
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException, ServletException {
+
+        CustomUserDetails principalDetails = (CustomUserDetails) authResult.getPrincipal();
+
+
+        String jwt = jwtTokenProvider.generateToken(principalDetails.getUsername());
+
+        response.addHeader("Authorization", "Bearer "+jwt);
+
+        System.out.println("jwt = Bearer " + jwt);
+
     }
 }
